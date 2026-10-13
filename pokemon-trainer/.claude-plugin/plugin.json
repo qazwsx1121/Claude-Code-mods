@@ -1,0 +1,6 @@
+{
+  "name": "pokemon-trainer",
+  "version": "0.1.0",
+  "description": "Pokémon battle look for Claude Code: a battle menu above the prompt, dialogue-box messages, move-name spinner and a Pikachu color theme",
+  "types": "./types/index.d.ts"
+}

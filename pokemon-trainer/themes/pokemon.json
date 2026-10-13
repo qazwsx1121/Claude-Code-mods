@@ -1,0 +1,23 @@
+{
+  "name": "Pokémon (Pikachu)",
+  "base": "dark",
+  "overrides": {
+    "promptBorder": "rgb(255,203,5)",
+    "promptBorderShimmer": "rgb(255,232,120)",
+    "claude": "rgb(238,21,21)",
+    "claudeShimmer": "rgb(255,110,90)",
+    "permission": "rgb(59,76,202)",
+    "permissionShimmer": "rgb(110,130,240)",
+    "suggestion": "rgb(99,144,240)",
+    "bashBorder": "rgb(238,129,48)",
+    "planMode": "rgb(104,144,240)",
+    "autoAccept": "rgb(160,64,160)",
+    "autoAcceptShimmer": "rgb(200,120,200)",
+    "success": "rgb(120,200,80)",
+    "error": "rgb(240,80,48)",
+    "warning": "rgb(248,208,48)",
+    "userMessageBackground": "rgb(26,38,82)",
+    "userMessageBackgroundHover": "rgb(36,52,108)",
+    "selectionBg": "rgb(59,76,202)"
+  }
+}
