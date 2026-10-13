@@ -86,20 +86,48 @@ test('/pokemon turns the look off and the engine draws again', async ($, on) => 
   expect(await ui.find({ text: /engine band/ })).toBeDefined()
 })
 
-test('the session opens on the Pokémon logo, then the battle menu', async ($, on) => {
+const sized = (bodyColumns: number, maxRows: number) => ({
+  ...band(false),
+  props: { ...band(false).props, bodyColumns, maxRows },
+  surface: 'terminal' as const,
+})
+
+test('the session opens on the logo alone, which clears itself and shows the battle menu', async ($, on) => {
   mock.store(on)
   const clock = mock.clock(on)
   on('session.start', (_, e) => ({ cwd: e.cwd }))
   on('command.register', (_, e) => ({ value: { command: e.name } }))
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+  // the session started long before the first draw: the logo still waits for it
+  await clock.advance(10_000)
   for (const surface of SURFACES) {
     const ui = await $.ui.mount({ ...band(false), surface })
-    expect(await ui.find({ text: /모험을 시작하자/ })).toBeDefined()
+    expect(await ui.find({ key: 'logo' }) ?? await ui.find({ type: 'Svg' })).toBeDefined()
+    expect(await ui.find({ text: /모험을 시작하자/ })).toBeUndefined()
+    expect(await ui.find({ text: /무엇을 할까/ })).toBeUndefined()
     await ui.unmount()
   }
-  await clock.advance(4000)
+  await clock.advance(3000)
   const ui = await $.ui.mount({ ...band(false), surface: 'terminal' })
   expect(await ui.find({ text: /무엇을 할까/ })).toBeDefined()
+})
+
+test('the logo takes the largest size the band has room for', async ($, on) => {
+  mock.store(on)
+  on('session.start', (_, e) => ({ cwd: e.cwd }))
+  on('command.register', (_, e) => ({ value: { command: e.name } }))
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+  const logoColumns = async (columns: number, rows: number) => {
+    const ui = await $.ui.mount(sized(columns, rows))
+    const found = await ui.find({ key: 'logo' })
+    await ui.unmount()
+
+    return found?.props.columns
+  }
+  expect(await logoColumns(120, 20)).toBe(80)
+  expect(await logoColumns(120, 12)).toBe(60)
+  expect(await logoColumns(70, 9)).toBe(44)
+  expect(await logoColumns(70, 6)).toBeUndefined()
 })
 
 test('a finished answer plays the report jingle, and /pokemon sound mutes it', async ($, on) => {
@@ -127,23 +155,17 @@ test('a finished answer plays the report jingle, and /pokemon sound mutes it', a
   expect(played).toHaveLength(1)
 })
 
-test('zooming in swaps Pikachu for a smaller one and trims the bar before dropping it', async ($, on) => {
+test('zooming in keeps the full Pikachu and sheds the menu and the bar text first', async ($, on) => {
   on('session.measure', (_, e) => ({ changed: e.changed }))
   await $.session.measure({
     context: { window: 200000, tokens: 144000, percent: 72 },
     rateLimits: [],
     changed: ['context'],
   })
-  const sized = (bodyColumns: number, maxRows: number) => ({
-    ...band(false),
-    props: { ...band(false).props, bodyColumns, maxRows },
-    surface: 'terminal' as const,
-  })
   const drawn = async (bodyColumns: number, maxRows: number) => {
     const ui = await $.ui.mount(sized(bodyColumns, maxRows))
     const found = {
-      large: (await ui.find({ key: 'pikachu' })) !== undefined,
-      small: (await ui.find({ key: 'pikachu-small' })) !== undefined,
+      pikachu: (await ui.find({ key: 'pikachu' })) !== undefined,
       menu: (await ui.find({ text: /싸운다/ })) !== undefined,
       tokens: (await ui.find({ text: /56k\/200k/ })) !== undefined,
     }
@@ -151,12 +173,10 @@ test('zooming in swaps Pikachu for a smaller one and trims the bar before droppi
 
     return found
   }
-  const all = { large: true, small: false, menu: true, tokens: true }
-  expect(await drawn(100, 20)).toEqual(all)
-  expect(await drawn(70, 20)).toEqual({ ...all, menu: false })
-  expect(await drawn(80, 8)).toEqual({ ...all, large: false, small: true })
-  expect(await drawn(62, 8)).toEqual({ ...all, large: false, small: true, menu: false })
-  expect(await drawn(54, 8)).toEqual({ large: false, small: true, menu: false, tokens: false })
-  expect(await drawn(45, 8)).toEqual({ large: false, small: true, menu: false, tokens: false })
-  expect(await drawn(41, 8)).toEqual({ large: false, small: false, menu: false, tokens: false })
+  expect(await drawn(100, 20)).toEqual({ pikachu: true, menu: true, tokens: true })
+  expect(await drawn(70, 20)).toEqual({ pikachu: true, menu: false, tokens: true })
+  expect(await drawn(54, 20)).toEqual({ pikachu: true, menu: false, tokens: false })
+  expect(await drawn(46, 20)).toEqual({ pikachu: true, menu: false, tokens: false })
+  expect(await drawn(45, 20)).toEqual({ pikachu: false, menu: false, tokens: false })
+  expect(await drawn(80, 8)).toEqual({ pikachu: false, menu: true, tokens: true })
 })

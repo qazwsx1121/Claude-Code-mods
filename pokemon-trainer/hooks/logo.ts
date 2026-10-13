@@ -1,5 +1,5 @@
 // The Pokémon logo for the startup screen, downsampled from the supplied
-// image to two sizes of half-block pixel art.
+// image to three sizes of half-block pixel art, largest first.
 
 import { sprite } from './art'
 
@@ -10,7 +10,7 @@ const COLORS: Record<string, number> = {
   N: 0x21386e,
 }
 
-export const LOGO_LARGE = sprite(
+const LOGO_LARGE = sprite(
   [
     '...........................................BB...................................',
     '..........................................NBBB..................................',
@@ -46,7 +46,7 @@ export const LOGO_LARGE = sprite(
   COLORS,
 )
 
-export const LOGO_SMALL = sprite(
+const LOGO_MEDIUM = sprite(
   [
     '................................BB..........................',
     '...............................NBB..........................',
@@ -73,3 +73,27 @@ export const LOGO_SMALL = sprite(
   ],
   COLORS,
 )
+
+const LOGO_SMALL = sprite(
+  [
+    '........................B...................',
+    '.......................BBB..................',
+    '......................BYYB..................',
+    '.....BBB.......BBNB..BBBB..BBBBBB...........',
+    '..BBBYYYBB...BBYBBYBBBBBBBNBYDBYB..NBBBB....',
+    'NBYYYYYYYDB.BBBYDYYYBYYYYDBBYYYYB..NBYYBBBBB',
+    'NBYYYYYBYYB..NBYYYYBBYBBYBBYYYYYBBBBBYYDBYDB',
+    '.BBBYYYBBYBBBBBYYYBBBYBYBBBYYYYYBBBYDBYDBYY.',
+    '.BBBYYYBYYBYYYDBYYDBBYYYYYBBYYYYBYBYYBYYYYB.',
+    '...NBYYYYBYDBBYBYYYYDBYYYBBYYBYYYYBBYBYYYYB.',
+    '...NBYYYBBYYDYYBYBBYYDBBBNBYBBBDBYYYYBYYYYB.',
+    '....NBYYBNYYYYBYYBNBBYYB.NBBBNBYBYYBBYBYYB..',
+    '....NBYYBNBBBBBBBB..NNBB.....NNBBBBNBYBYYB..',
+    '.....NBYDBNNN.NBB.....N.......NNNB.NNNBYYB..',
+    '.....NBBBB...........................NNBB...',
+    '......NB...............................NB...',
+  ],
+  COLORS,
+)
+
+export const LOGOS = [LOGO_LARGE, LOGO_MEDIUM, LOGO_SMALL]

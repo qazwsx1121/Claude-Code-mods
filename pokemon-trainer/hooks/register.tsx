@@ -2,8 +2,8 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { Hp } from '../types'
-import { PIKACHU, PIKACHU_SMALL } from './art'
-import { LOGO_LARGE, LOGO_SMALL } from './logo'
+import { PIKACHU } from './art'
+import { LOGOS } from './logo'
 
 const isOn = atom({ plugin: 'pokemon-trainer', key: 'isOn' } as const, true)
 const move = atom({ plugin: 'pokemon-trainer', key: 'move' } as const, null)
@@ -18,7 +18,8 @@ const HP_GREEN = '#40d060'
 const HP_YELLOW = '#f8c800'
 const HP_RED = '#f04030'
 
-const INTRO_MS = 4000
+const INTRO_MS = 3000
+const PIKACHU_BESIDE_MIN = 24
 const REPORT_SOUND = 'sounds/report.wav'
 const HP_BAR_WIDTH = 12
 const HP_BAR_NARROW = 6
@@ -116,6 +117,8 @@ async function playReport($: EngineInterface): Promise<void> {
 }
 
 export const register: Register = on => {
+  let isIntroTimed = false
+
   on('session.start', async ($, e, next) => {
     const savedOn = await $.store.get('isOn')
     if (typeof savedOn === 'boolean') await update($, isOn, () => savedOn)
@@ -128,7 +131,6 @@ export const register: Register = on => {
     })
     if (e.isInteractive && (await read($, isOn))) {
       await update($, isIntro, () => true)
-      $.clock.after(INTRO_MS, () => void update($, isIntro, () => false))
     }
 
     return next(e)
@@ -201,20 +203,21 @@ export const register: Register = on => {
     }
 
     if (await read($, isIntro)) {
-      const logo =
-        columns >= LOGO_LARGE.columns + 2 && rows >= LOGO_LARGE.rows + 2
-          ? LOGO_LARGE
-          : columns >= LOGO_SMALL.columns + 2 && rows >= LOGO_SMALL.rows + 2
-            ? LOGO_SMALL
-            : null
+      const logo = LOGOS.find(one => rows >= one.rows && columns >= one.columns)
+      if (logo) {
+        // The clock starts at the first draw: the session starts well before
+        // the screen is up, and a timer begun then can run out unseen.
+        if (!isIntroTimed) {
+          isIntroTimed = true
+          $.clock.after(INTRO_MS, () => void update($, isIntro, () => false))
+        }
 
-      return (
-        <Box flexDirection="column" alignItems="center">
-          {logo && draw(logo, 'logo', '포켓몬 로고', 320)}
-          <Text bold color={YELLOW}>포켓몬 트레이너 CLAUDE와 모험을 시작하자!</Text>
-          <Text dimColor>▶ 아무 말이나 입력하면 시작해요</Text>
-        </Box>
-      )
+        return (
+          <Box flexDirection="column" alignItems="center">
+            {draw(logo, 'logo', '포켓몬 로고', 320)}
+          </Box>
+        )
+      }
     }
 
     const current = await read($, move)
@@ -248,19 +251,15 @@ export const register: Register = on => {
       )
     }
 
-    // Zooming in leaves fewer cells, so draw the largest Pikachu the band has
-    // room for beside the dialogue box (itself narrower when zoomed in) and
-    // the menu only where all three fit: the menu goes first, then the big
-    // sprite gives way to the small one, never the whole picture at once.
+    // Zooming in leaves fewer cells. The menu goes first, then the dialogue
+    // box narrows; Pikachu stays while even a narrow box fits beside it.
     const dialog = isNarrow ? DIALOG_NARROW : DIALOG_WIDTH
-    const art = [PIKACHU, PIKACHU_SMALL].find(
-      one => rows >= one.rows + 1 && columns >= one.columns + 1 + dialog,
-    )
-    const hasMenu = columns >= (art ? art.columns + 1 : 0) + dialog + 1 + MENU_WIDTH
+    const hasPikachu = rows >= PIKACHU.rows + 1 && columns >= PIKACHU.columns + 1 + PIKACHU_BESIDE_MIN
+    const hasMenu = columns >= (hasPikachu ? PIKACHU.columns + 1 : 0) + dialog + 1 + MENU_WIDTH
 
     return (
       <Box flexDirection="row" gap={1}>
-        {art && draw(art, art === PIKACHU ? 'pikachu' : 'pikachu-small', '피카츄', art === PIKACHU ? 64 : 36)}
+        {hasPikachu && draw(PIKACHU, 'pikachu', '피카츄', 64)}
         <Box
           flexDirection="column"
           flexGrow={1}

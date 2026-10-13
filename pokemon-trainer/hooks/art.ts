@@ -92,20 +92,3 @@ const PIKACHU_COLORS: Record<string, number> = {
 }
 
 export const PIKACHU = sprite(PIKACHU_PIXELS, PIKACHU_COLORS)
-
-// The same Pikachu at half size (11 by 10), for a terminal zoomed in so far
-// that the full sprite no longer fits beside the dialogue box.
-const PIKACHU_SMALL_PIXELS = [
-  '..KK....KK.',
-  '..KK..KKYDK',
-  '.KKKKKGDDDK',
-  'KYYYYYDDDK.',
-  'KYYWYKWDK..',
-  'KYYRRYWDK..',
-  'KKDRRYYBK..',
-  '..KDYYYK...',
-  '..KKYYYK...',
-  '....KKK....',
-]
-
-export const PIKACHU_SMALL = sprite(PIKACHU_SMALL_PIXELS, PIKACHU_COLORS)
