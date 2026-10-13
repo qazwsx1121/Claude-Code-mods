@@ -14,6 +14,17 @@ Claude Code를 포켓몬 배틀 화면처럼 꾸미는 모드입니다.
 
 터미널 글꼴은 모드가 바꿀 수 없어서 터미널 설정에서 바꿔야 해요. 닌텐도 DS 게임 글씨와 닮은 무료 한글 픽셀 폰트 [갈무리(Galmuri)](https://github.com/quiple/galmuri)의 `Galmuri11`을 추천해요.
 
+## 설치 (Windows)
+
+PowerShell에서 실행하세요. 저장소를 받고 `~/.claude/settings.json`에 모드 경로와 피카츄 테마를 등록해요 (원본은 `settings.json.bak`으로 백업).
+
+```powershell
+git clone -b claude/busy-cori-ujrvf6 https://github.com/qazwsx1121/Claude-Code-mods "$env:USERPROFILE\Claude-Code-mods"
+powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\Claude-Code-mods\install.ps1"
+```
+
+이미 받아 둔 저장소에서는 두 번째 줄만 실행하면 최신으로 맞추고 설정까지 다시 해요.
+
 ## 사용법
 
 ```sh
