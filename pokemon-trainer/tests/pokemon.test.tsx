@@ -85,3 +85,44 @@ test('/pokemon turns the look off and the engine draws again', async ($, on) => 
   const ui = await $.ui.mount({ ...band(false), surface: 'terminal' })
   expect(await ui.find({ text: /engine band/ })).toBeDefined()
 })
+
+test('the session opens on the Pokémon logo, then the battle menu', async ($, on) => {
+  mock.store(on)
+  const clock = mock.clock(on)
+  on('session.start', (_, e) => ({ cwd: e.cwd }))
+  on('command.register', (_, e) => ({ value: { command: e.name } }))
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+  for (const surface of SURFACES) {
+    const ui = await $.ui.mount({ ...band(false), surface })
+    expect(await ui.find({ text: /모험을 시작하자/ })).toBeDefined()
+    await ui.unmount()
+  }
+  await clock.advance(4000)
+  const ui = await $.ui.mount({ ...band(false), surface: 'terminal' })
+  expect(await ui.find({ text: /무엇을 할까/ })).toBeDefined()
+})
+
+test('a finished answer plays the report jingle, and /pokemon sound mutes it', async ($, on) => {
+  mock.store(on)
+  const clock = mock.clock(on)
+  const played: unknown[] = []
+  on('audio.play', (_, e) => {
+    played.push(e.clip)
+
+    return { value: undefined }
+  })
+  on('turn.complete', () => ({ text: '' }))
+  await $.turn.complete(turn('t1'))
+  await clock.advance(0)
+  expect(played).toEqual([{ asset: 'sounds/report.wav' }])
+
+  await $.command.run({
+    command: 'pokemon',
+    args: 'sound',
+    origin: { kind: 'composer' },
+    presentation: { isFullscreen: false, columns: 90 },
+  })
+  await $.turn.complete(turn('t2'))
+  await clock.advance(0)
+  expect(played).toHaveLength(1)
+})

@@ -1,12 +1,15 @@
 import { atom, read, update } from 'claude-code'
-import type { Register } from 'claude-code'
+import type { EngineInterface, Register } from 'claude-code'
 
 import type { Hp } from '../types'
-import { PIKACHU_COLUMNS, PIKACHU_ROWS, PIKACHU_SVG, pikachuCells } from './art'
+import { PIKACHU } from './art'
+import { LOGO_LARGE, LOGO_SMALL } from './logo'
 
 const isOn = atom({ plugin: 'pokemon-trainer', key: 'isOn' } as const, true)
 const move = atom({ plugin: 'pokemon-trainer', key: 'move' } as const, null)
 const hp = atom({ plugin: 'pokemon-trainer', key: 'hp' } as const, null)
+const isIntro = atom({ plugin: 'pokemon-trainer', key: 'isIntro' } as const, false)
+const isSoundOn = atom({ plugin: 'pokemon-trainer', key: 'isSoundOn' } as const, true)
 
 const YELLOW = '#ffcb05'
 const BLUE = '#3b4cca'
@@ -15,7 +18,8 @@ const HP_GREEN = '#40d060'
 const HP_YELLOW = '#f8c800'
 const HP_RED = '#f04030'
 
-const PIKACHU_CELLS = pikachuCells()
+const INTRO_MS = 4000
+const REPORT_SOUND = 'sounds/report.wav'
 const HP_BAR_WIDTH = 12
 const MENU_WIDTH = 24
 
@@ -72,19 +76,62 @@ function pickMove(seed: string): string {
   return REPLY_MOVES[Math.abs(hash) % REPLY_MOVES.length] ?? '몸통박치기'
 }
 
+/** A PowerShell script as `-EncodedCommand` takes it: UTF-16LE, base64. */
+function encodePowerShell(script: string): string {
+  let binary = ''
+  for (let i = 0; i < script.length; i++) {
+    const code = script.charCodeAt(i)
+    binary += String.fromCharCode(code & 0xff, code >> 8)
+  }
+
+  return btoa(binary)
+}
+
+/**
+ * Plays the report-saved jingle. `$.audio.play` sounds only on macOS, so a
+ * Windows host plays the file through PowerShell's SoundPlayer instead.
+ */
+async function playReport($: EngineInterface): Promise<void> {
+  const root = $.plugin.root
+  if (!/^[A-Za-z]:[\\/]/.test(root)) {
+    await $.audio.play({ asset: REPORT_SOUND })
+    return
+  }
+  const file = `${root}\\${REPORT_SOUND.replace('/', '\\')}`.replace(/'/g, "''")
+  const script = `(New-Object System.Media.SoundPlayer '${file}').PlaySync()`
+  await $.process.run(
+    ['powershell.exe', '-NoProfile', '-NonInteractive', '-EncodedCommand', encodePowerShell(script)],
+    { timeoutMs: 10_000 },
+  )
+}
+
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     const savedOn = await $.store.get('isOn')
     if (typeof savedOn === 'boolean') await update($, isOn, () => savedOn)
+    const savedSound = await $.store.get('isSoundOn')
+    if (typeof savedSound === 'boolean') await update($, isSoundOn, () => savedSound)
     await $.command.register({
       name: 'pokemon',
-      description: '포켓몬 배틀 화면을 켜고 끕니다',
+      description: '포켓몬 배틀 화면을 켜고 끕니다 (sound: 효과음 켜고 끄기)',
+      argumentHint: '[sound]',
     })
+    if (e.isInteractive && (await read($, isOn))) {
+      await update($, isIntro, () => true)
+      $.clock.after(INTRO_MS, () => void update($, isIntro, () => false))
+    }
 
     return next(e)
   })
 
-  on('command.run', { command: 'pokemon' }, async $ => {
+  on('command.run', { command: 'pokemon' }, async ($, e) => {
+    if (e.args.trim() === 'sound') {
+      const sound = !(await read($, isSoundOn))
+      await update($, isSoundOn, () => sound)
+      await $.store.set('isSoundOn', sound)
+
+      return { text: sound ? '리포트 저장 효과음 ON!' : '리포트 저장 효과음 OFF.' }
+    }
     const now = !(await read($, isOn))
     await update($, isOn, () => now)
     await $.store.set('isOn', now)
@@ -109,8 +156,19 @@ export const register: Register = on => {
     return next(e)
   })
 
+  on('prompt.submit', async ($, e, next) => {
+    await update($, isIntro, () => false)
+
+    return next(e)
+  })
+
   on('turn.complete', async ($, e, next) => {
-    if (e.agentId === undefined) await update($, move, () => null)
+    if (e.agentId === undefined) {
+      await update($, move, () => null)
+      if (e.reason === 'answer' && (await read($, isOn)) && (await read($, isSoundOn))) {
+        $.clock.after(0, () => void playReport($).catch(() => undefined))
+      }
+    }
 
     return next(e)
   })
@@ -119,11 +177,38 @@ export const register: Register = on => {
     if (e.props.hasSurvey || !(await read($, isOn))) return next(e)
     if (e.surface !== 'terminal' && e.surface !== 'desktop') return next(e)
 
-    const current = await read($, move)
-    const bar = hpBar(await read($, hp))
     const columns = e.props.bodyColumns
+    const rows = e.props.maxRows
     const isWorking = e.props.isWorking
     const { Box, Text } = $.ui.resolve(e)
+    const draw = (art: typeof PIKACHU, key: string, alt: string, px: number) => {
+      if (e.surface === 'terminal') {
+        const { Raster } = $.ui.resolve(e)
+        return <Raster key={key} columns={art.columns} rows={art.rows} cells={art.cells} />
+      }
+      const { Svg } = $.ui.resolve(e)
+      return <Svg source={art.svg} alt={alt} width={px} height={Math.round((px * art.rows * 2) / art.columns)} />
+    }
+
+    if (await read($, isIntro)) {
+      const logo =
+        columns >= LOGO_LARGE.columns + 2 && rows >= LOGO_LARGE.rows + 2
+          ? LOGO_LARGE
+          : columns >= LOGO_SMALL.columns + 2 && rows >= LOGO_SMALL.rows + 2
+            ? LOGO_SMALL
+            : null
+
+      return (
+        <Box flexDirection="column" alignItems="center">
+          {logo && draw(logo, 'logo', '포켓몬 로고', 320)}
+          <Text bold color={YELLOW}>포켓몬 트레이너 CLAUDE와 모험을 시작하자!</Text>
+          <Text dimColor>▶ 아무 말이나 입력하면 시작해요</Text>
+        </Box>
+      )
+    }
+
+    const current = await read($, move)
+    const bar = hpBar(await read($, hp))
 
     const message = isWorking ? (
       <Text wrap="truncate">
@@ -141,7 +226,7 @@ export const register: Register = on => {
       </Text>
     )
 
-    if (e.props.maxRows < 6 || columns < 40) {
+    if (rows < 6 || columns < 40) {
       return (
         <Box>
           <Text color={RED}>◓ </Text>
@@ -152,18 +237,9 @@ export const register: Register = on => {
       )
     }
 
-    let sprite
-    if (e.surface === 'terminal') {
-      const { Raster } = $.ui.resolve(e)
-      sprite = <Raster key="pikachu" columns={PIKACHU_COLUMNS} rows={PIKACHU_ROWS} cells={PIKACHU_CELLS} />
-    } else {
-      const { Svg } = $.ui.resolve(e)
-      sprite = <Svg source={PIKACHU_SVG} alt="피카츄" width={64} height={64} />
-    }
-
     return (
       <Box flexDirection="row" gap={1}>
-        {columns >= 64 && e.props.maxRows >= PIKACHU_ROWS + 2 && sprite}
+        {columns >= 64 && rows >= PIKACHU.rows + 2 && draw(PIKACHU, 'pikachu', '피카츄', 64)}
         <Box
           flexDirection="column"
           flexGrow={1}

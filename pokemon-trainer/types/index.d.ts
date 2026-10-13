@@ -5,6 +5,8 @@ declare module 'claude-code' {
   interface PluginState {
     'pokemon-trainer': {
       isOn: boolean
+      isIntro: boolean
+      isSoundOn: boolean
       move: string | null
       hp: Hp | null
     }
