@@ -25,7 +25,7 @@ test('the battle band asks what the trainer will do', async $ => {
     const ui = await $.ui.mount({ ...band(false), surface })
     expect(await ui.find({ text: /무엇을 할까/ })).toBeDefined()
     expect(await ui.find({ text: /싸운다/ })).toBeDefined()
-    expect(await ui.find({ text: /Lv\.5/ })).toBeDefined()
+    expect(await ui.find({ text: /HP/ })).toBeDefined()
     await ui.unmount()
   }
 })
@@ -40,12 +40,18 @@ test('a tool call becomes the move the band announces', async ($, on) => {
   }
 })
 
-test('ten quiet turns level CLAUDE up from 5 to 6', async ($, on) => {
-  mock.store(on)
-  on('turn.complete', () => ({ text: '' }))
-  for (let i = 0; i < 10; i++) await $.turn.complete(turn(`t${i}`))
-  const ui = await $.ui.mount({ ...band(false), surface: 'terminal' })
-  expect(await ui.find({ text: /Lv\.6/ })).toBeDefined()
+test('the HP bar shows how much of the context window is left', async ($, on) => {
+  on('session.measure', (_, e) => ({ changed: e.changed }))
+  await $.session.measure({
+    context: { window: 200000, tokens: 144000, percent: 72 },
+    rateLimits: [],
+    changed: ['context'],
+  })
+  for (const surface of SURFACES) {
+    const ui = await $.ui.mount({ ...band(false), surface })
+    expect(await ui.find({ text: /28% 56k\/200k/ })).toBeDefined()
+    await ui.unmount()
+  }
 })
 
 test("the person's prompt is drawn in a trainer dialogue box", async $ => {

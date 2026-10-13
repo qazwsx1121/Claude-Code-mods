@@ -1,23 +1,22 @@
 import { atom, read, update } from 'claude-code'
 import type { Register } from 'claude-code'
 
-import type { Trainer } from '../types'
-import { POKEBALL_SVG, pokeballCells } from './art'
+import type { Hp } from '../types'
+import { PIKACHU_COLUMNS, PIKACHU_ROWS, PIKACHU_SVG, pikachuCells } from './art'
 
 const isOn = atom({ plugin: 'pokemon-trainer', key: 'isOn' } as const, true)
 const move = atom({ plugin: 'pokemon-trainer', key: 'move' } as const, null)
-const trainer = atom({ plugin: 'pokemon-trainer', key: 'trainer' } as const, {
-  level: 5,
-  exp: 0,
-})
+const hp = atom({ plugin: 'pokemon-trainer', key: 'hp' } as const, null)
 
 const YELLOW = '#ffcb05'
 const BLUE = '#3b4cca'
 const RED = '#ee1515'
-const EXP_BLUE = '#40c8f8'
+const HP_GREEN = '#40d060'
+const HP_YELLOW = '#f8c800'
+const HP_RED = '#f04030'
 
-const BALL_SIZE = 12
-const BALL_CELLS = pokeballCells(BALL_SIZE)
+const PIKACHU_CELLS = pikachuCells()
+const HP_BAR_WIDTH = 12
 const MENU_WIDTH = 24
 
 const MOVES: Record<string, string> = {
@@ -37,25 +36,26 @@ const MOVES: Record<string, string> = {
 }
 const REPLY_MOVES = ['10만볼트', '화염방사', '파도타기', '파괴광선', '전광석화']
 
-function expToNext(level: number): number {
-  return level + 5
+function formatTokens(n: number): string {
+  return n >= 1000 ? `${Math.round(n / 1000)}k` : `${n}`
 }
 
-function gainExp(from: Trainer, gained: number): Trainer {
-  let { level, exp } = from
-  exp += gained
-  while (exp >= expToNext(level) && level < 100) {
-    exp -= expToNext(level)
-    level += 1
+/** The HP bar of what is left of the context window: green, then yellow, then red. */
+function hpBar(value: Hp | null): { full: string; empty: string; color: string; label: string } {
+  if (value === null || value.window <= 0) {
+    return { full: '▰'.repeat(HP_BAR_WIDTH), empty: '', color: HP_GREEN, label: '--/--' }
   }
+  const left = Math.max(0, value.window - value.tokens)
+  const ratio = left / value.window
+  const filled = Math.min(HP_BAR_WIDTH, Math.max(left > 0 ? 1 : 0, Math.round(ratio * HP_BAR_WIDTH)))
+  const color = ratio > 0.5 ? HP_GREEN : ratio > 0.2 ? HP_YELLOW : HP_RED
 
-  return { level, exp: level >= 100 ? 0 : exp }
-}
-
-function expBar(t: Trainer, width: number): { full: string; empty: string } {
-  const filled = Math.round((t.exp / expToNext(t.level)) * width)
-
-  return { full: '▰'.repeat(filled), empty: '▱'.repeat(width - filled) }
+  return {
+    full: '▰'.repeat(filled),
+    empty: '▱'.repeat(HP_BAR_WIDTH - filled),
+    color,
+    label: `${Math.round(ratio * 100)}% ${formatTokens(left)}/${formatTokens(value.window)}`,
+  }
 }
 
 function formatDuration(ms: number): string {
@@ -73,13 +73,7 @@ function pickMove(seed: string): string {
 }
 
 export const register: Register = on => {
-  let toolsThisTurn = 0
-
   on('session.start', async ($, e, next) => {
-    const saved = (await $.store.get('trainer')) as Trainer | undefined
-    if (saved && typeof saved.level === 'number' && typeof saved.exp === 'number') {
-      await update($, trainer, () => saved)
-    }
     const savedOn = await $.store.get('isOn')
     if (typeof savedOn === 'boolean') await update($, isOn, () => savedOn)
     await $.command.register({
@@ -103,25 +97,20 @@ export const register: Register = on => {
   })
 
   on('tool.call', async ($, e, next) => {
-    toolsThisTurn += 1
     await update($, move, () => MOVES[String(e.tool)] ?? '몸통박치기')
 
     return next(e)
   })
 
+  on('session.measure', async ($, e, next) => {
+    const { tokens, window } = e.context
+    if (tokens !== undefined && window > 0) await update($, hp, () => ({ tokens, window }))
+
+    return next(e)
+  })
+
   on('turn.complete', async ($, e, next) => {
-    if (e.agentId === undefined) {
-      const gained = 1 + Math.min(toolsThisTurn, 20)
-      toolsThisTurn = 0
-      const before = await read($, trainer)
-      const after = gainExp(before, gained)
-      await update($, trainer, () => after)
-      await update($, move, () => null)
-      await $.store.set('trainer', after)
-      if (after.level > before.level && (await read($, isOn))) {
-        $.ui.toast(`CLAUDE의 레벨이 올랐다! Lv.${after.level}`)
-      }
-    }
+    if (e.agentId === undefined) await update($, move, () => null)
 
     return next(e)
   })
@@ -130,9 +119,8 @@ export const register: Register = on => {
     if (e.props.hasSurvey || !(await read($, isOn))) return next(e)
     if (e.surface !== 'terminal' && e.surface !== 'desktop') return next(e)
 
-    const t = await read($, trainer)
     const current = await read($, move)
-    const bar = expBar(t, 10)
+    const bar = hpBar(await read($, hp))
     const columns = e.props.bodyColumns
     const isWorking = e.props.isWorking
     const { Box, Text } = $.ui.resolve(e)
@@ -147,9 +135,9 @@ export const register: Register = on => {
     )
     const status = (
       <Text wrap="truncate">
-        <Text bold color={RED}>CLAUDE</Text> Lv.{t.level}{'  '}
-        <Text color={EXP_BLUE}>{bar.full}</Text>
-        <Text dimColor>{bar.empty} {t.exp}/{expToNext(t.level)}</Text>
+        <Text bold color={RED}>CLAUDE</Text> <Text bold color={YELLOW}>HP</Text>{' '}
+        <Text color={bar.color}>{bar.full}</Text>
+        <Text dimColor>{bar.empty}</Text> {bar.label}
       </Text>
     )
 
@@ -164,18 +152,18 @@ export const register: Register = on => {
       )
     }
 
-    let ball
+    let sprite
     if (e.surface === 'terminal') {
       const { Raster } = $.ui.resolve(e)
-      ball = <Raster key="ball" columns={BALL_SIZE} rows={BALL_SIZE / 2} cells={BALL_CELLS} />
+      sprite = <Raster key="pikachu" columns={PIKACHU_COLUMNS} rows={PIKACHU_ROWS} cells={PIKACHU_CELLS} />
     } else {
       const { Svg } = $.ui.resolve(e)
-      ball = <Svg source={POKEBALL_SVG} alt="몬스터볼" width={64} height={64} />
+      sprite = <Svg source={PIKACHU_SVG} alt="피카츄" width={64} height={64} />
     }
 
     return (
       <Box flexDirection="row" gap={1}>
-        {columns >= 64 && ball}
+        {columns >= 64 && sprite}
         <Box
           flexDirection="column"
           flexGrow={1}
