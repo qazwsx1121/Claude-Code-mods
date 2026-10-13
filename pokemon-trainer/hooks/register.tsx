@@ -163,7 +163,7 @@ export const register: Register = on => {
 
     return (
       <Box flexDirection="row" gap={1}>
-        {columns >= 64 && sprite}
+        {columns >= 64 && e.props.maxRows >= PIKACHU_ROWS + 2 && sprite}
         <Box
           flexDirection="column"
           flexGrow={1}

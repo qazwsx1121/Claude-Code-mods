@@ -1,4 +1,4 @@
-// Pixel art for the battle band: Pikachu as terminal half-block cells (two
+// Pixel art for the battle band: Pikachu (a 21 by 20 sprite) as terminal half-block cells (two
 // pixels per cell, top in the foreground, bottom in the background) and the
 // same sprite as an SVG for the surfaces that draw Svg instead of Raster.
 
@@ -8,33 +8,41 @@ const LOWER_HALF = 0x2584
 const SPACE = 0x20
 
 const SPRITE = [
-  '..KK........KK..',
-  '..KK........KK..',
-  '..KYK......KYK..',
-  '...KYK....KYK...',
-  '...KYYKKKKYYK...',
-  '..KYYYYYYYYYYK..',
-  '.KYYYYYYYYYYYYK.',
-  '.KYYYYYYYYYYYYK.',
-  '.KYYKWYYYYWKYYK.',
-  '.KYYKKYYYYKKYYK.',
-  '.KRRYYYKKYYYRRK.',
-  '.KRRYYYYYYYYRRK.',
-  '..KYYYYKKYYYYK..',
-  '...KYYYYYYYYK...',
-  '...KYYYKKYYYK...',
-  '....KKK..KKK....',
+  '......KK.............',
+  '.....KGK.........KK..',
+  '.....KGK........KYDK.',
+  '....KDDK....KKKKYDDDK',
+  '....KDOK..KKGGGYDDDDK',
+  '...KKDK..KYYGGDDDDDK.',
+  '..KDYYYKKYYYGDDDDDK..',
+  '.KYYYYYYOYYGDDDDDK...',
+  '.KYYYYDYYYOKKDDDK....',
+  'KYYYYDWKYYYKWKDDDK...',
+  'KYOYYYKGYYYYKWKDDK...',
+  '.KYYYYYRRYYYYKDDK....',
+  'KDGDYYYRRYYYBGBK.....',
+  '.KKKDDYYGYYYYYGBK....',
+  '....KDDGYYGYYBGK.....',
+  '....KDDYGGYYYYK......',
+  '.....KDDYYYYYGK......',
+  '......KKKYYYYK.......',
+  '.........KKYK........',
+  '..........KK.........',
 ]
 
 const COLORS: Record<string, number> = {
-  K: 0x1a1a1a,
-  Y: 0xffd900,
-  R: 0xee3b2b,
+  K: 0x313131,
+  G: 0x525252,
+  Y: 0xf7d631,
+  D: 0xc5a529,
+  O: 0x9c8442,
+  B: 0xb57329,
+  R: 0xf76352,
   W: 0xffffff,
 }
 
-export const PIKACHU_COLUMNS = 16
-export const PIKACHU_ROWS = 8
+export const PIKACHU_COLUMNS = SPRITE[0]?.length ?? 0
+export const PIKACHU_ROWS = SPRITE.length / 2
 
 function colorAt(x: number, y: number): number {
   const ch = SPRITE[y]?.[x] ?? '.'
@@ -79,7 +87,7 @@ function svg(): string {
     }
   }
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" shape-rendering="crispEdges">${rects}</svg>`
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${PIKACHU_COLUMNS} ${SPRITE.length}" shape-rendering="crispEdges">${rects}</svg>`
 }
 
 export const PIKACHU_SVG = svg()
