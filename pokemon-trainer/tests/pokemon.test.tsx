@@ -126,27 +126,3 @@ test('a finished answer plays the report jingle, and /pokemon sound mutes it', a
   await clock.advance(0)
   expect(played).toHaveLength(1)
 })
-
-test('shrinking the terminal swaps Pikachu for a smaller one before dropping it', async $ => {
-  const sized = (bodyColumns: number, maxRows: number) => ({
-    ...band(false),
-    props: { ...band(false).props, bodyColumns, maxRows },
-    surface: 'terminal' as const,
-  })
-  const sprites = async (bodyColumns: number, maxRows: number) => {
-    const ui = await $.ui.mount(sized(bodyColumns, maxRows))
-    const found = {
-      large: (await ui.find({ key: 'pikachu' })) !== undefined,
-      small: (await ui.find({ key: 'pikachu-small' })) !== undefined,
-      menu: (await ui.find({ text: /싸운다/ })) !== undefined,
-    }
-    await ui.unmount()
-
-    return found
-  }
-  expect(await sprites(100, 20)).toEqual({ large: true, small: false, menu: true })
-  expect(await sprites(70, 20)).toEqual({ large: true, small: false, menu: false })
-  expect(await sprites(80, 8)).toEqual({ large: false, small: true, menu: true })
-  expect(await sprites(54, 8)).toEqual({ large: false, small: true, menu: false })
-  expect(await sprites(45, 8)).toEqual({ large: false, small: false, menu: false })
-})

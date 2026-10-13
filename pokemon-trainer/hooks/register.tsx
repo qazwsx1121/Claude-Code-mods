@@ -2,7 +2,7 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { Hp } from '../types'
-import { PIKACHU, PIKACHU_SMALL } from './art'
+import { PIKACHU } from './art'
 import { LOGO_LARGE, LOGO_SMALL } from './logo'
 
 const isOn = atom({ plugin: 'pokemon-trainer', key: 'isOn' } as const, true)
@@ -22,7 +22,6 @@ const INTRO_MS = 4000
 const REPORT_SOUND = 'sounds/report.wav'
 const HP_BAR_WIDTH = 12
 const MENU_WIDTH = 24
-const DIALOG_MIN_WIDTH = 40
 
 const MOVES: Record<string, string> = {
   Bash: '10만볼트',
@@ -238,17 +237,9 @@ export const register: Register = on => {
       )
     }
 
-    // Draw the largest Pikachu that leaves the dialogue box its room, and the
-    // menu only where all three fit, so shrinking the terminal sheds the menu
-    // first, then the big sprite, and never the whole picture at once.
-    const art = [PIKACHU, PIKACHU_SMALL].find(
-      one => rows >= one.rows + 1 && columns >= one.columns + 1 + DIALOG_MIN_WIDTH,
-    )
-    const hasMenu = columns >= (art ? art.columns + 1 : 0) + DIALOG_MIN_WIDTH + 1 + MENU_WIDTH
-
     return (
       <Box flexDirection="row" gap={1}>
-        {art && draw(art, art === PIKACHU ? 'pikachu' : 'pikachu-small', '피카츄', art === PIKACHU ? 64 : 36)}
+        {columns >= 64 && rows >= PIKACHU.rows + 2 && draw(PIKACHU, 'pikachu', '피카츄', 64)}
         <Box
           flexDirection="column"
           flexGrow={1}
@@ -263,7 +254,7 @@ export const register: Register = on => {
             {isWorking ? 'esc 를 누르면 도망간다' : '기술을 입력하고 Enter!'}
           </Text>
         </Box>
-        {hasMenu && (
+        {columns >= 52 && (
           <Box
             flexDirection="column"
             width={MENU_WIDTH}
