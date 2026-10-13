@@ -126,3 +126,37 @@ test('a finished answer plays the report jingle, and /pokemon sound mutes it', a
   await clock.advance(0)
   expect(played).toHaveLength(1)
 })
+
+test('zooming in swaps Pikachu for a smaller one and trims the bar before dropping it', async ($, on) => {
+  on('session.measure', (_, e) => ({ changed: e.changed }))
+  await $.session.measure({
+    context: { window: 200000, tokens: 144000, percent: 72 },
+    rateLimits: [],
+    changed: ['context'],
+  })
+  const sized = (bodyColumns: number, maxRows: number) => ({
+    ...band(false),
+    props: { ...band(false).props, bodyColumns, maxRows },
+    surface: 'terminal' as const,
+  })
+  const drawn = async (bodyColumns: number, maxRows: number) => {
+    const ui = await $.ui.mount(sized(bodyColumns, maxRows))
+    const found = {
+      large: (await ui.find({ key: 'pikachu' })) !== undefined,
+      small: (await ui.find({ key: 'pikachu-small' })) !== undefined,
+      menu: (await ui.find({ text: /싸운다/ })) !== undefined,
+      tokens: (await ui.find({ text: /56k\/200k/ })) !== undefined,
+    }
+    await ui.unmount()
+
+    return found
+  }
+  const all = { large: true, small: false, menu: true, tokens: true }
+  expect(await drawn(100, 20)).toEqual(all)
+  expect(await drawn(70, 20)).toEqual({ ...all, menu: false })
+  expect(await drawn(80, 8)).toEqual({ ...all, large: false, small: true })
+  expect(await drawn(62, 8)).toEqual({ ...all, large: false, small: true, menu: false })
+  expect(await drawn(54, 8)).toEqual({ large: false, small: true, menu: false, tokens: false })
+  expect(await drawn(45, 8)).toEqual({ large: false, small: true, menu: false, tokens: false })
+  expect(await drawn(41, 8)).toEqual({ large: false, small: false, menu: false, tokens: false })
+})

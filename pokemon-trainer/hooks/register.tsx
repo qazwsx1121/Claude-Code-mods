@@ -2,7 +2,7 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { Hp } from '../types'
-import { PIKACHU } from './art'
+import { PIKACHU, PIKACHU_SMALL } from './art'
 import { LOGO_LARGE, LOGO_SMALL } from './logo'
 
 const isOn = atom({ plugin: 'pokemon-trainer', key: 'isOn' } as const, true)
@@ -21,7 +21,11 @@ const HP_RED = '#f04030'
 const INTRO_MS = 4000
 const REPORT_SOUND = 'sounds/report.wav'
 const HP_BAR_WIDTH = 12
+const HP_BAR_NARROW = 6
 const MENU_WIDTH = 24
+const DIALOG_WIDTH = 40
+const DIALOG_NARROW = 30
+const NARROW_COLUMNS = 60
 
 const MOVES: Record<string, string> = {
   Bash: '10만볼트',
@@ -45,20 +49,26 @@ function formatTokens(n: number): string {
 }
 
 /** The HP bar of what is left of the context window: green, then yellow, then red. */
-function hpBar(value: Hp | null): { full: string; empty: string; color: string; label: string } {
+function hpBar(
+  value: Hp | null,
+  width: number,
+  isNarrow: boolean,
+): { full: string; empty: string; color: string; label: string } {
   if (value === null || value.window <= 0) {
-    return { full: '▰'.repeat(HP_BAR_WIDTH), empty: '', color: HP_GREEN, label: '--/--' }
+    return { full: '▰'.repeat(width), empty: '', color: HP_GREEN, label: '--/--' }
   }
   const left = Math.max(0, value.window - value.tokens)
   const ratio = left / value.window
-  const filled = Math.min(HP_BAR_WIDTH, Math.max(left > 0 ? 1 : 0, Math.round(ratio * HP_BAR_WIDTH)))
+  const filled = Math.min(width, Math.max(left > 0 ? 1 : 0, Math.round(ratio * width)))
   const color = ratio > 0.5 ? HP_GREEN : ratio > 0.2 ? HP_YELLOW : HP_RED
 
   return {
     full: '▰'.repeat(filled),
-    empty: '▱'.repeat(HP_BAR_WIDTH - filled),
+    empty: '▱'.repeat(width - filled),
     color,
-    label: `${Math.round(ratio * 100)}% ${formatTokens(left)}/${formatTokens(value.window)}`,
+    label: isNarrow
+      ? `${Math.round(ratio * 100)}%`
+      : `${Math.round(ratio * 100)}% ${formatTokens(left)}/${formatTokens(value.window)}`,
   }
 }
 
@@ -208,7 +218,8 @@ export const register: Register = on => {
     }
 
     const current = await read($, move)
-    const bar = hpBar(await read($, hp))
+    const isNarrow = columns < NARROW_COLUMNS
+    const bar = hpBar(await read($, hp), isNarrow ? HP_BAR_NARROW : HP_BAR_WIDTH, isNarrow)
 
     const message = isWorking ? (
       <Text wrap="truncate">
@@ -237,9 +248,19 @@ export const register: Register = on => {
       )
     }
 
+    // Zooming in leaves fewer cells, so draw the largest Pikachu the band has
+    // room for beside the dialogue box (itself narrower when zoomed in) and
+    // the menu only where all three fit: the menu goes first, then the big
+    // sprite gives way to the small one, never the whole picture at once.
+    const dialog = isNarrow ? DIALOG_NARROW : DIALOG_WIDTH
+    const art = [PIKACHU, PIKACHU_SMALL].find(
+      one => rows >= one.rows + 1 && columns >= one.columns + 1 + dialog,
+    )
+    const hasMenu = columns >= (art ? art.columns + 1 : 0) + dialog + 1 + MENU_WIDTH
+
     return (
       <Box flexDirection="row" gap={1}>
-        {columns >= 64 && rows >= PIKACHU.rows + 2 && draw(PIKACHU, 'pikachu', '피카츄', 64)}
+        {art && draw(art, art === PIKACHU ? 'pikachu' : 'pikachu-small', '피카츄', art === PIKACHU ? 64 : 36)}
         <Box
           flexDirection="column"
           flexGrow={1}
@@ -254,7 +275,7 @@ export const register: Register = on => {
             {isWorking ? 'esc 를 누르면 도망간다' : '기술을 입력하고 Enter!'}
           </Text>
         </Box>
-        {columns >= 52 && (
+        {hasMenu && (
           <Box
             flexDirection="column"
             width={MENU_WIDTH}
