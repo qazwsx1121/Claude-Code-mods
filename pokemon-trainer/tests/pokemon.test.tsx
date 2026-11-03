@@ -182,3 +182,15 @@ test('zooming in keeps the full Pikachu and sheds the menu and the bar text firs
   expect(await drawn(45, 20)).toEqual({ pikachu: false, menu: false, tokens: false })
   expect(await drawn(80, 8)).toEqual({ pikachu: false, menu: true, tokens: true })
 })
+
+test('before the first answer the HP bar shows the window size it already knows', async ($, on) => {
+  mock.store(on)
+  on('session.start', (_, e) => ({ cwd: e.cwd }))
+  on('command.register', (_, e) => ({ value: { command: e.name } }))
+  on('session.usage', () => ({
+    value: { startedAt: 0, context: { window: 1_000_000 }, rateLimits: [] },
+  }))
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: false })
+  const ui = await $.ui.mount({ ...band(false), surface: 'terminal' })
+  expect(await ui.find({ text: /--\/1000k/ })).toBeDefined()
+})

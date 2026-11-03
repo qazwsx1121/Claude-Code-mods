@@ -61,6 +61,14 @@ function hpBar(
   if (value === null || value.window <= 0) {
     return { full: '▰'.repeat(width), empty: '', color: HP_GREEN, label: '--/--' }
   }
+  if (value.tokens === undefined) {
+    return {
+      full: '▰'.repeat(width),
+      empty: '',
+      color: HP_GREEN,
+      label: isNarrow ? '--%' : `--/${formatTokens(value.window)}`,
+    }
+  }
   const left = Math.max(0, value.window - value.tokens)
   const ratio = left / value.window
   const filled = Math.min(width, Math.max(left > 0 ? 1 : 0, Math.round(ratio * width)))
@@ -135,6 +143,14 @@ export const register: Register = on => {
     if (e.isInteractive && (await read($, isOn))) {
       await update($, isIntro, () => true)
     }
+    // The window's size is known from the start; what is used of it arrives
+    // with the first answer (session.measure), so show the size until then.
+    try {
+      const { context } = await $.session.usage()
+      if (context.window > 0) await update($, hp, () => ({ tokens: context.tokens, window: context.window }))
+    } catch {
+      // No usage to read here: the bar waits for session.measure.
+    }
 
     return next(e)
   })
@@ -166,7 +182,7 @@ export const register: Register = on => {
 
   on('session.measure', async ($, e, next) => {
     const { tokens, window } = e.context
-    if (tokens !== undefined && window > 0) await update($, hp, () => ({ tokens, window }))
+    if (window > 0) await update($, hp, last => ({ tokens: tokens ?? last?.tokens, window }))
 
     return next(e)
   })
