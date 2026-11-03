@@ -11,6 +11,9 @@ const hp = atom({ plugin: 'pokemon-trainer', key: 'hp' } as const, null)
 const isIntro = atom({ plugin: 'pokemon-trainer', key: 'isIntro' } as const, false)
 const isSoundOn = atom({ plugin: 'pokemon-trainer', key: 'isSoundOn' } as const, true)
 
+/** The Pokémon CLAUDE plays in the battle, named wherever the screen speaks of it. */
+const POKEMON_NAME = '피카츄'
+
 const YELLOW = '#ffcb05'
 const BLUE = '#3b4cca'
 const RED = '#ee1515'
@@ -226,7 +229,7 @@ export const register: Register = on => {
 
     const message = isWorking ? (
       <Text wrap="truncate">
-        <Text bold color={RED}>CLAUDE</Text>의{' '}
+        <Text bold color={RED}>{POKEMON_NAME}</Text>의{' '}
         <Text bold color={YELLOW}>{current ?? '명상'}</Text>!
       </Text>
     ) : (
@@ -234,7 +237,7 @@ export const register: Register = on => {
     )
     const status = (
       <Text wrap="truncate">
-        <Text bold color={RED}>CLAUDE</Text> <Text bold color={YELLOW}>HP</Text>{' '}
+        <Text bold color={RED}>{POKEMON_NAME}</Text> <Text bold color={YELLOW}>HP</Text>{' '}
         <Text color={bar.color}>{bar.full}</Text>
         <Text dimColor>{bar.empty}</Text> {bar.label}
       </Text>
@@ -327,7 +330,7 @@ export const register: Register = on => {
       <Box flexDirection="column">
         {e.props.isFirstOfReply && (
           <Text>
-            <Text bold color="#ffffff" backgroundColor={BLUE}> ◓ CLAUDE </Text>
+            <Text bold color="#ffffff" backgroundColor={BLUE}> ◓ {POKEMON_NAME} </Text>
           </Text>
         )}
         <Box borderStyle="round" borderColor={BLUE} paddingX={1}>
@@ -346,7 +349,7 @@ export const register: Register = on => {
     else if (mode === 'requesting') name = '고속이동'
     else name = pickMove(word)
 
-    return next({ ...e, props: { ...e.props, word: `CLAUDE의 ${name}` } })
+    return next({ ...e, props: { ...e.props, word: `${POKEMON_NAME}의 ${name}` } })
   })
 
   on('ui.render', { component: 'TurnDuration' }, async ($, e, next) => {
@@ -355,7 +358,7 @@ export const register: Register = on => {
 
     return (
       <Text dimColor>
-        <Text color={RED}>◓</Text> 배틀 종료! CLAUDE는 경험치를 얻었다 ({formatDuration(e.props.durationMs)})
+        <Text color={RED}>◓</Text> 배틀 종료! {POKEMON_NAME}는 경험치를 얻었다 ({formatDuration(e.props.durationMs)})
       </Text>
     )
   })

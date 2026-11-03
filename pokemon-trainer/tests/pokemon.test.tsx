@@ -26,6 +26,8 @@ test('the battle band asks what the trainer will do', async $ => {
     expect(await ui.find({ text: /무엇을 할까/ })).toBeDefined()
     expect(await ui.find({ text: /싸운다/ })).toBeDefined()
     expect(await ui.find({ text: /HP/ })).toBeDefined()
+    expect(await ui.find({ text: /피카츄/ })).toBeDefined()
+    expect(await ui.find({ text: /CLAUDE/ })).toBeUndefined()
     await ui.unmount()
   }
 })
