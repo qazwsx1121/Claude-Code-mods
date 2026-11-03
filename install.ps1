@@ -5,7 +5,7 @@
 
 $ErrorActionPreference = 'Stop'
 $Repo = 'https://github.com/qazwsx1121/Claude-Code-mods'
-$Branch = 'claude/busy-cori-ujrvf6'
+$Branch = 'main'
 
 if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
   throw 'git이 설치되어 있지 않아요. https://git-scm.com 에서 설치한 뒤 다시 실행하세요.'
